@@ -44,7 +44,7 @@ jobs:
         run: |
           set -euo pipefail
           install -m 700 -d ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_deploy
+          printf '%s\n' "$SSH_PRIVATE_KEY" | sed 's/\r$//' > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
 
           if grep -q "^PuTTY-User-Key-File-" ~/.ssh/id_deploy; then
@@ -52,13 +52,29 @@ jobs:
             exit 1
           fi
 
-          if grep -qi "ENCRYPTED" ~/.ssh/id_deploy && [ -z "${SSH_KEY_PASSPHRASE:-}" ]; then
+          key_encrypted=0
+          if grep -qi "ENCRYPTED" ~/.ssh/id_deploy; then
+            key_encrypted=1
+          fi
+
+          if [ "$key_encrypted" = "1" ] && [ -z "${SSH_KEY_PASSPHRASE:-}" ]; then
             echo "::error::Encrypted SSH key detected. Set secret DEPLOY_SSH_PASSPHRASE."
             exit 1
           fi
 
-          if [ -n "${SSH_KEY_PASSPHRASE:-}" ]; then
-            ssh-keygen -p -P "$SSH_KEY_PASSPHRASE" -N "" -f ~/.ssh/id_deploy >/dev/null
+          if [ "$key_encrypted" = "1" ]; then
+            # Remove accidental CRLF/trailing newline from copied secret values.
+            PASSPHRASE_CLEAN="$(printf '%s' "$SSH_KEY_PASSPHRASE" | tr -d '\r')"
+            PASSPHRASE_CLEAN="${PASSPHRASE_CLEAN%$'\n'}"
+            if ! ssh-keygen -p -P "$PASSPHRASE_CLEAN" -N "" -f ~/.ssh/id_deploy >/dev/null 2>&1; then
+              echo "::error::Cannot decrypt DEPLOY_SSH_PRIVATE_KEY. Check DEPLOY_SSH_PASSPHRASE and key pairing."
+              exit 1
+            fi
+          fi
+
+          if ! ssh-keygen -yf ~/.ssh/id_deploy >/dev/null 2>&1; then
+            echo "::error::DEPLOY_SSH_PRIVATE_KEY is invalid or unreadable after processing."
+            exit 1
           fi
 
           if [ -n "$DEPLOY_HOST_KEY" ]; then
