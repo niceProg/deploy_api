@@ -94,6 +94,15 @@ jobs:
           git_safe() {
             git -c safe.directory="$DEPLOY_PATH" "$@"
           }
+          git_dir="$(git_safe rev-parse --git-dir)"
+          if [ ! -w "$git_dir" ] || { [ -e "$git_dir/FETCH_HEAD" ] && [ ! -w "$git_dir/FETCH_HEAD" ]; }; then
+            if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+              sudo chown -R "$(id -u):$(id -g)" "$DEPLOY_PATH"
+            else
+              echo "::error::No write access to $git_dir. Run once on server: sudo chown -R $(id -u):$(id -g) $DEPLOY_PATH"
+              exit 1
+            fi
+          fi
           git_safe fetch origin "$DEPLOY_BRANCH"
           git_safe checkout "$DEPLOY_BRANCH"
           git_safe pull --ff-only origin "$DEPLOY_BRANCH"
