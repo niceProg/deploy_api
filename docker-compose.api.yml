@@ -1,0 +1,33 @@
+services:
+  xgboost-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: xgboost-api
+    # Enable port mapping for IP:Port access (will be redirected to domain)
+    ports:
+      - "9000:8000"
+    env_file:
+      - .env.production
+    environment:
+      # Database configuration
+      - DB_HOST=${DB_HOST:-103.150.81.86}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_NAME=${DB_NAME:-xgboostqc}
+      - DB_USER=${DB_USER:-xgboostqc}
+      - DB_PASSWORD=${DB_PASSWORD:-6SPxBDwXH6WyxpfT}
+    volumes:
+      - ./output_train:/app/output_train
+    networks:
+      - xgboost-network
+    restart: unless-stopped
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 40s
+
+networks:
+  xgboost-network:
+    driver: bridge

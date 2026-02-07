@@ -1,0 +1,30 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY requirements_api.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements_api.txt
+
+# Copy application files
+COPY *.py ./
+
+# Create necessary directories
+RUN mkdir -p output_train/datasets/summary
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Run the FastAPI server
+CMD ["uvicorn", "xgboost_api:app", "--host", "0.0.0.0", "--port", "8000"]
