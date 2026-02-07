@@ -90,22 +90,26 @@ jobs:
           ssh -i ~/.ssh/id_deploy -p "$DEPLOY_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" \
             "DEPLOY_PATH='$DEPLOY_PATH' DEPLOY_BRANCH='$DEPLOY_BRANCH' bash -s" <<'REMOTE'
           set -euo pipefail
+          if ! command -v sudo >/dev/null 2>&1; then
+            echo "::error::sudo is required on remote server but is not installed."
+            exit 1
+          fi
+          if ! sudo -n true >/dev/null 2>&1; then
+            echo "::error::sudo requires password. Configure passwordless sudo for DEPLOY_USER."
+            exit 1
+          fi
+
           cd "$DEPLOY_PATH"
           git_safe() {
             git -c safe.directory="$DEPLOY_PATH" "$@"
           }
           git_dir="$(git_safe rev-parse --git-dir)"
           if [ ! -w "$git_dir" ] || { [ -e "$git_dir/FETCH_HEAD" ] && [ ! -w "$git_dir/FETCH_HEAD" ]; }; then
-            if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
-              sudo chown -R "$(id -u):$(id -g)" "$DEPLOY_PATH"
-            else
-              echo "::error::No write access to $git_dir. Run once on server: sudo chown -R $(id -u):$(id -g) $DEPLOY_PATH"
-              exit 1
-            fi
+            sudo chown -R "$(id -u):$(id -g)" "$DEPLOY_PATH"
           fi
           git_safe fetch origin "$DEPLOY_BRANCH"
           git_safe checkout "$DEPLOY_BRANCH"
           git_safe pull --ff-only origin "$DEPLOY_BRANCH"
-          chmod +x deploy_api.sh
-          ./deploy_api.sh
+          sudo chmod +x deploy_api.sh
+          sudo ./deploy_api.sh
           REMOTE
