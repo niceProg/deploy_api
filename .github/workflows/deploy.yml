@@ -1,0 +1,83 @@
+name: Deploy API
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-api-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to server
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      DEPLOY_BRANCH: ${{ vars.DEPLOY_BRANCH || 'main' }}
+      SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+      SSH_KEY_PASSPHRASE: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
+      DEPLOY_HOST_KEY: ${{ secrets.DEPLOY_HOST_KEY }}
+    steps:
+      - name: Validate required deploy secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in DEPLOY_HOST DEPLOY_USER DEPLOY_PATH SSH_PRIVATE_KEY; do
+            if [ -z "${!key}" ]; then
+              echo "::error::Missing required configuration: ${key}"
+              exit 1
+            fi
+          done
+
+      - name: Configure SSH client
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+
+          if grep -q "^PuTTY-User-Key-File-" ~/.ssh/id_deploy; then
+            echo "::error::DEPLOY_SSH_PRIVATE_KEY is PuTTY .ppk format. Use OpenSSH private key content instead."
+            exit 1
+          fi
+
+          if grep -qi "ENCRYPTED" ~/.ssh/id_deploy && [ -z "${SSH_KEY_PASSPHRASE:-}" ]; then
+            echo "::error::Encrypted SSH key detected. Set secret DEPLOY_SSH_PASSPHRASE."
+            exit 1
+          fi
+
+          if [ -n "${SSH_KEY_PASSPHRASE:-}" ]; then
+            ssh-keygen -p -P "$SSH_KEY_PASSPHRASE" -N "" -f ~/.ssh/id_deploy >/dev/null
+          fi
+
+          if [ -n "$DEPLOY_HOST_KEY" ]; then
+            printf '%s\n' "$DEPLOY_HOST_KEY" >> ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "$DEPLOY_PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+          fi
+
+      - name: Pull latest commit and run deployment script
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/id_deploy -p "$DEPLOY_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" \
+            "DEPLOY_PATH='$DEPLOY_PATH' DEPLOY_BRANCH='$DEPLOY_BRANCH' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$DEPLOY_PATH"
+          git fetch origin "$DEPLOY_BRANCH"
+          git checkout "$DEPLOY_BRANCH"
+          git pull --ff-only origin "$DEPLOY_BRANCH"
+          chmod +x deploy_api.sh
+          ./deploy_api.sh
+          REMOTE
