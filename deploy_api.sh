@@ -3,7 +3,7 @@
 # XGBoost API Deployment Script
 # This script deploys the XGBoost API for QuantConnect integration
 
-set -e
+set -euo pipefail
 
 echo "🚀 XGBoost API Deployment Script"
 echo "================================"
@@ -55,7 +55,7 @@ echo ""
 
 # Step 1: Stop and remove old container
 echo "🛑 Stopping old XGBoost API container..."
-docker-compose -f docker-compose.api.yml down 2>/dev/null || echo "No existing containers to stop"
+docker-compose -f docker-compose.api.yml down --remove-orphans 2>/dev/null || echo "No existing containers to stop"
 echo "✅ Old containers removed"
 
 # Step 2: Remove old Python bytecode
@@ -65,12 +65,21 @@ find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
 echo "✅ Bytecode cache cleaned"
 
 # Step 3: Build new image
+echo "🗑️ Removing previous XGBoost API image (if any)..."
+OLD_IMAGE_ID="$(docker-compose -f docker-compose.api.yml images -q xgboost-api 2>/dev/null | head -n 1 || true)"
+if [ -n "${OLD_IMAGE_ID}" ]; then
+    docker rmi -f "${OLD_IMAGE_ID}" >/dev/null 2>&1 || true
+    echo "✅ Previous image removed: ${OLD_IMAGE_ID}"
+else
+    echo "ℹ️ No previous image found"
+fi
+
 echo "🔨 Building XGBoost API container..."
-docker-compose -f docker-compose.api.yml build --no-cache
+docker-compose -f docker-compose.api.yml build --no-cache --pull
 
 # Step 4: Start new container
 echo "🚀 Starting XGBoost API container..."
-docker-compose -f docker-compose.api.yml up -d
+docker-compose -f docker-compose.api.yml up -d --force-recreate --remove-orphans
 
 echo "⏳ Waiting for API to be healthy..."
 sleep 10
