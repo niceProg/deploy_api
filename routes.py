@@ -25,6 +25,7 @@ MODEL_VERSIONS = [
     "futures_new_gen_eth",
     "futures_new_gen_btc_binance",
     "futures_new_gen_v2_btc_binance",
+    "futures_new_gen_v2_eth_binance",
     "futures_new_gen_btc_bybit",
     "futures_new_gen_eth_bybit",
 ]

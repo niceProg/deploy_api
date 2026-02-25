@@ -110,6 +110,8 @@ if docker ps | grep -q "xgboost-api"; then
     echo "   Futures - List Sessions: https://api.dragonfortune.ai/api/v1/futures/sessions"
     echo "   Futures New Gen V2 (BTC Binance) - Latest Model: https://api.dragonfortune.ai/api/v1/futures_new_gen_v2_btc_binance/latest/model"
     echo "   Futures New Gen V2 (BTC Binance) - Latest Summary: https://api.dragonfortune.ai/api/v1/futures_new_gen_v2_btc_binance/latest/dataset-summary"
+    echo "   Futures New Gen V2 (ETH Binance) - Latest Model: https://api.dragonfortune.ai/api/v1/futures_new_gen_v2_eth_binance/latest/model"
+    echo "   Futures New Gen V2 (ETH Binance) - Latest Summary: https://api.dragonfortune.ai/api/v1/futures_new_gen_v2_eth_binance/latest/dataset-summary"
     echo "   Futures New Gen (BTC Bybit) - Latest Model: https://api.dragonfortune.ai/api/v1/futures_new_gen_btc_bybit/latest/model"
     echo "   Futures New Gen (BTC Bybit) - Latest Summary: https://api.dragonfortune.ai/api/v1/futures_new_gen_btc_bybit/latest/dataset-summary"
     echo "   Futures New Gen (ETH Bybit) - Latest Model: https://api.dragonfortune.ai/api/v1/futures_new_gen_eth_bybit/latest/model"
