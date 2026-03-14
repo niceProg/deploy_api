@@ -394,7 +394,7 @@ class ModelService:
                 db.query(self.db_storage.db_model)
                 .filter(
                     self.db_storage.db_model.model_version == model_version,
-                    self.db_storage.db_model.predictions_data.isnot(None),
+                    self.db_storage.db_model.model_name.like("predictions_%"),
                 )
                 .order_by(self.db_storage.db_model.created_at.desc())
                 .first()
@@ -406,7 +406,7 @@ class ModelService:
                     detail=f"No predictions found for {model_version}",
                 )
 
-            predictions_base64 = encode_to_base64(model_record.predictions_data)
+            predictions_base64 = encode_to_base64(model_record.model_data)
 
             self.logger.info(
                 f"✅ Retrieved latest {model_version} predictions (model ID: {model_record.id})"

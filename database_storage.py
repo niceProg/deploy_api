@@ -54,7 +54,6 @@ class ModelStorage(Base):
     model_version = Column(String(50), default='spot')  # 'spot' or 'futures'
     model_file = Column(String(500))
     model_data = Column(LONGBLOB)  # pickled model
-    predictions_data = Column(LONGBLOB, nullable=True)  # predictions JSON blob
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Composite index for performance: filter by version, order by created_at DESC
@@ -116,9 +115,6 @@ class DatabaseStorage:
             ModelStorage.__table__.create(bind=self.engine, checkfirst=True)
             logger.info("✅ Created xgboost_dataset_summary and xgboost_models tables per client requirement")
 
-            # Ensure predictions_data column exists (migration for existing tables)
-            self._ensure_predictions_column()
-
             # Create session factory
             self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
 
@@ -132,24 +128,6 @@ class DatabaseStorage:
     # def _create_client_tables(self):
     #     """Create additional tables for client requirements."""
     #     pass
-
-    def _ensure_predictions_column(self):
-        """Add predictions_data column to xgboost_models if it doesn't exist (migration)."""
-        try:
-            with self.engine.connect() as conn:
-                result = conn.execute(text(
-                    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS "
-                    "WHERE TABLE_SCHEMA = :db AND TABLE_NAME = 'xgboost_models' "
-                    "AND COLUMN_NAME = 'predictions_data'"
-                ), {"db": self.db_config['database']})
-                if not result.fetchone():
-                    conn.execute(text(
-                        "ALTER TABLE xgboost_models ADD COLUMN predictions_data LONGBLOB"
-                    ))
-                    conn.commit()
-                    logger.info("✅ Added predictions_data column to xgboost_models")
-        except Exception as e:
-            logger.warning(f"⚠️ Could not ensure predictions_data column: {e}")
 
     def get_session(self) -> Session:
         """Get a database session."""
