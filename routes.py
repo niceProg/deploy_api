@@ -71,6 +71,11 @@ class ModelsResponse(BaseModel):
     models: List[ModelInfo]
 
 
+class PredictionsResponse(BaseModel):
+    success: bool
+    predictions_data_base64: Optional[str]
+
+
 class ErrorResponse(BaseModel):
     error: str
     message: str
@@ -381,6 +386,46 @@ class ModelService:
         finally:
             db.close()
 
+    def get_latest_predictions(self, model_version: str) -> PredictionsResponse:
+        self._ensure_db()
+        db = self.db_storage.get_session()
+        try:
+            model_record = (
+                db.query(self.db_storage.db_model)
+                .filter(
+                    self.db_storage.db_model.model_version == model_version,
+                    self.db_storage.db_model.predictions_data.isnot(None),
+                )
+                .order_by(self.db_storage.db_model.created_at.desc())
+                .first()
+            )
+
+            if not model_record:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"No predictions found for {model_version}",
+                )
+
+            predictions_base64 = encode_to_base64(model_record.predictions_data)
+
+            self.logger.info(
+                f"✅ Retrieved latest {model_version} predictions (model ID: {model_record.id})"
+            )
+            return PredictionsResponse(
+                success=True,
+                predictions_data_base64=predictions_base64,
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            self.logger.error(f"❌ Failed to get {model_version} predictions: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to retrieve predictions: {str(e)}",
+            )
+        finally:
+            db.close()
+
     def insert_model_by_version(
         self, model_request: ModelInsertRequest, model_version: str
     ) -> ModelInsertResponse:
@@ -478,3 +523,19 @@ def register_model_routes(
             return service.insert_model_by_version(model_request, model_version)
 
         app.include_router(router)
+
+    # Predictions endpoint (futures_new_gen_v4_btc_binance only)
+    predictions_router = APIRouter(
+        prefix="/api/v1/futures_new_gen_v4_btc_binance",
+        tags=["futures_new_gen_v4_btc_binance"],
+    )
+
+    @predictions_router.get(
+        "/latest/predictions",
+        response_model=PredictionsResponse,
+        operation_id="futures_new_gen_v4_btc_binance_latest_predictions",
+    )
+    async def get_latest_predictions():
+        return service.get_latest_predictions("futures_new_gen_v4_btc_binance")
+
+    app.include_router(predictions_router)
