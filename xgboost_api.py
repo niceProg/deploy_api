@@ -112,7 +112,7 @@ if __name__ == "__main__":
         logger.info(f"   GET {prefix}/summary/{{summary_id}} - Get {version} dataset summary by ID")
         logger.info(f"   GET {prefix}/models - List all {version} models")
         logger.info(f"   POST {prefix}/model - Insert new {version} model")
-        if version == "futures_new_gen_v4_btc_binance":
+        if version in ("futures_new_gen_v4_btc_binance", "futures_new_gen_v2_eth_bybit"):
             logger.info(f"   GET {prefix}/latest/predictions - Get latest {version} predictions")
     logger.info("")
     logger.info("📖 API docs available at: http://localhost:5000/docs")

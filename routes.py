@@ -524,18 +524,21 @@ def register_model_routes(
 
         app.include_router(router)
 
-    # Predictions endpoint (futures_new_gen_v4_btc_binance only)
-    predictions_router = APIRouter(
-        prefix="/api/v1/futures_new_gen_v4_btc_binance",
-        tags=["futures_new_gen_v4_btc_binance"],
-    )
+    # Predictions endpoints
+    predictions_versions = [
+        "futures_new_gen_v4_btc_binance",
+        "futures_new_gen_v2_eth_bybit",
+    ]
 
-    @predictions_router.get(
-        "/latest/predictions",
-        response_model=PredictionsResponse,
-        operation_id="futures_new_gen_v4_btc_binance_latest_predictions",
-    )
-    async def get_latest_predictions():
-        return service.get_latest_predictions("futures_new_gen_v4_btc_binance")
+    for pv in predictions_versions:
+        pred_router = APIRouter(prefix=f"/api/v1/{pv}", tags=[pv])
 
-    app.include_router(predictions_router)
+        @pred_router.get(
+            "/latest/predictions",
+            response_model=PredictionsResponse,
+            operation_id=f"{pv}_latest_predictions",
+        )
+        async def get_latest_predictions(model_version=pv):
+            return service.get_latest_predictions(model_version)
+
+        app.include_router(pred_router)
