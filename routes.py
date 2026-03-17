@@ -427,6 +427,46 @@ class ModelService:
         finally:
             db.close()
 
+    def get_prediction_by_id(self, predict_id: int, model_version: str) -> PredictionsResponse:
+        self._ensure_db()
+        db = self.db_storage.get_session()
+        try:
+            model_record = (
+                db.query(self.db_storage.db_model)
+                .filter(
+                    self.db_storage.db_model.id == predict_id,
+                    self.db_storage.db_model.model_version == model_version,
+                    self.db_storage.db_model.model_name.like("predictions_%"),
+                )
+                .first()
+            )
+
+            if not model_record:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"No prediction found with id {predict_id} for {model_version}",
+                )
+
+            predictions_base64 = encode_to_base64(model_record.model_data)
+
+            self.logger.info(
+                f"✅ Retrieved {model_version} prediction (ID: {predict_id})"
+            )
+            return PredictionsResponse(
+                success=True,
+                predictions_data_base64=predictions_base64,
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            self.logger.error(f"❌ Failed to get {model_version} prediction {predict_id}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to retrieve prediction: {str(e)}",
+            )
+        finally:
+            db.close()
+
     def insert_model_by_version(
         self, model_request: ModelInsertRequest, model_version: str
     ) -> ModelInsertResponse:
@@ -525,21 +565,34 @@ def register_model_routes(
 
         app.include_router(router)
 
-    # Predictions endpoints
-    predictions_versions = [
-        "futures_new_gen_v4_btc_binance",
-        "futures_new_gen_v2_eth_bybit",
-    ]
+    # Predictions endpoint: futures_new_gen_v4_btc_binance (latest)
+    pred_v4_router = APIRouter(
+        prefix="/api/v1/futures_new_gen_v4_btc_binance",
+        tags=["futures_new_gen_v4_btc_binance"],
+    )
 
-    for pv in predictions_versions:
-        pred_router = APIRouter(prefix=f"/api/v1/{pv}", tags=[pv])
+    @pred_v4_router.get(
+        "/latest/predictions",
+        response_model=PredictionsResponse,
+        operation_id="futures_new_gen_v4_btc_binance_latest_predictions",
+    )
+    async def get_latest_predictions_v4():
+        return service.get_latest_predictions("futures_new_gen_v4_btc_binance")
 
-        @pred_router.get(
-            "/latest/predictions",
-            response_model=PredictionsResponse,
-            operation_id=f"{pv}_latest_predictions",
-        )
-        async def get_latest_predictions(model_version=pv):
-            return service.get_latest_predictions(model_version)
+    app.include_router(pred_v4_router)
 
-        app.include_router(pred_router)
+    # Predictions endpoint: futures_new_gen_v2_eth_bybit (by ID)
+    pred_v2_eth_router = APIRouter(
+        prefix="/api/v1/futures_new_gen_v2_eth_bybit",
+        tags=["futures_new_gen_v2_eth_bybit"],
+    )
+
+    @pred_v2_eth_router.get(
+        "/prediction/{predict_id}",
+        response_model=PredictionsResponse,
+        operation_id="futures_new_gen_v2_eth_bybit_prediction_by_id",
+    )
+    async def get_prediction_by_id(predict_id: int):
+        return service.get_prediction_by_id(predict_id, "futures_new_gen_v2_eth_bybit")
+
+    app.include_router(pred_v2_eth_router)
