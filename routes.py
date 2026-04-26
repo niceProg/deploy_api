@@ -615,3 +615,19 @@ def register_model_routes(
         return service.get_latest_predictions("futures_new_gen_v2_eth_bybit_news")
 
     app.include_router(pred_v2_eth_news_router)
+
+    # Predictions endpoint: futures_new_gen_v3_eth_bybit (latest)
+    pred_v3_eth_bybit_router = APIRouter(
+        prefix="/api/v1/futures_new_gen_v3_eth_bybit",
+        tags=["futures_new_gen_v3_eth_bybit"],
+    )
+
+    @pred_v3_eth_bybit_router.get(
+        "/latest/predictions",
+        response_model=PredictionsResponse,
+        operation_id="futures_new_gen_v3_eth_bybit_latest_predictions",
+    )
+    async def get_latest_predictions_v3_eth_bybit():
+        return service.get_latest_predictions("futures_new_gen_v3_eth_bybit")
+
+    app.include_router(pred_v3_eth_bybit_router)
