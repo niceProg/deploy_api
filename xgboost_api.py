@@ -116,6 +116,8 @@ if __name__ == "__main__":
             "futures_new_gen_v4_btc_binance",
             "futures_new_gen_v2_eth_bybit",
             "futures_new_gen_v2_eth_bybit_news",
+            "futures_new_gen_v3_eth_bybit",
+            "futures_new_gen_btc_binance_v5",
         ):
             logger.info(f"   GET {prefix}/latest/predictions - Get latest {version} predictions")
     logger.info("")

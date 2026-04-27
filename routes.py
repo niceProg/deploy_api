@@ -632,3 +632,19 @@ def register_model_routes(
         return service.get_latest_predictions("futures_new_gen_v3_eth_bybit")
 
     app.include_router(pred_v3_eth_bybit_router)
+
+    # Predictions endpoint: futures_new_gen_btc_binance_v5 (latest)
+    pred_btc_binance_v5_router = APIRouter(
+        prefix="/api/v1/futures_new_gen_btc_binance_v5",
+        tags=["futures_new_gen_btc_binance_v5"],
+    )
+
+    @pred_btc_binance_v5_router.get(
+        "/latest/predictions",
+        response_model=PredictionsResponse,
+        operation_id="futures_new_gen_btc_binance_v5_latest_predictions",
+    )
+    async def get_latest_predictions_btc_binance_v5():
+        return service.get_latest_predictions("futures_new_gen_btc_binance_v5")
+
+    app.include_router(pred_btc_binance_v5_router)
