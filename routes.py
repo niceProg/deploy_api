@@ -19,6 +19,7 @@ from database_storage import DatabaseStorage
 MODEL_VERSIONS = [
     "spot",
     "spot_btc_binance",
+    "spot_btc_binance_v2",
     # "futures",
     # "futures17",
     "futures_new_gen",
